@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PRG2 — Aktiv lernen</title>
+<style>
+  :root{
+    --bg:#13151c; --bg2:#181b24; --surface:#1d212c; --surface2:#222735;
+    --ink:#eef0f4; --ink2:#aeb4c2; --ink3:#727a8c;
+    --line:#2c3140; --line2:#3a4254;
+    --recall:#e6a94e; --recall-soft:#3a2f1c;
+    --known:#46c39a; --known-soft:#16352c;
+    --again:#e08a76; --again-soft:#3a2620;
+    --mono:ui-monospace,"SF Mono","JetBrains Mono",Menlo,Consolas,monospace;
+    --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,sans-serif;
+  }
+  @media (prefers-color-scheme: light){
+    :root{
+      --bg:#f3f1ea; --bg2:#ece9df; --surface:#ffffff; --surface2:#faf8f2;
+      --ink:#1b1d22; --ink2:#4a4f5a; --ink3:#8a8f9a;
+      --line:#e0ddd2; --line2:#cfccc0;
+      --recall:#b9772a; --recall-soft:#f7ecda;
+      --known:#1d9874; --known-soft:#e2f3ec;
+      --again:#c25c43; --again-soft:#f8e9e4;
+    }
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{scroll-behavior:smooth}
+  body{background:var(--bg);color:var(--ink);font-family:var(--sans);line-height:1.55;-webkit-font-smoothing:antialiased}
+  .wrap{max-width:760px;margin:0 auto;padding:0 18px 80px}
+  .top{position:sticky;top:0;z-index:20;background:color-mix(in srgb,var(--bg) 88%,transparent);backdrop-filter:blur(10px);border-bottom:1px solid var(--line);margin:0 -18px 22px;padding:14px 18px 12px}
+  .top-row{display:flex;align-items:baseline;justify-content:space-between;gap:12px;max-width:760px;margin:0 auto}
+  .brand{font-family:var(--mono);font-size:.74rem;letter-spacing:.14em;text-transform:uppercase;color:var(--ink3)}
+  .score{font-family:var(--mono);font-size:.82rem;color:var(--ink2)}
+  .score b{color:var(--known);font-size:1rem}
+  .bar{height:5px;background:var(--line);border-radius:99px;margin:10px auto 0;max-width:760px;overflow:hidden}
+  .bar>i{display:block;height:100%;width:0;background:var(--known);border-radius:99px;transition:width .4s ease}
+  .head{padding:26px 0 6px}
+  .head h1{font-size:1.55rem;font-weight:700;letter-spacing:-.01em;line-height:1.15}
+  .head p{color:var(--ink2);font-size:.92rem;margin-top:7px}
+  .filters{display:flex;gap:7px;flex-wrap:wrap;margin:18px 0 6px;align-items:center}
+  .chip{font-family:var(--mono);font-size:.74rem;letter-spacing:.02em;padding:6px 12px;border:1px solid var(--line2);background:var(--surface);color:var(--ink2);border-radius:99px;cursor:pointer;transition:.15s}
+  .chip:hover{border-color:var(--ink3);color:var(--ink)}
+  .chip.on{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+  .chip .n{opacity:.6;margin-left:5px}
+  .spacer{flex:1}
+  .mini{font-family:var(--mono);font-size:.72rem;color:var(--ink3);background:none;border:none;cursor:pointer;padding:6px 4px;text-decoration:underline;text-underline-offset:3px}
+  .mini:hover{color:var(--again)}
+  .section-block{margin-top:30px;scroll-margin-top:90px}
+  .section-head{display:flex;align-items:center;gap:12px;margin-bottom:14px;padding-bottom:10px;border-bottom:1px solid var(--line)}
+  .section-num{font-family:var(--mono);font-size:.78rem;color:var(--recall);border:1px solid var(--line2);border-radius:7px;padding:3px 8px;flex-shrink:0}
+  .section-name{font-size:1.12rem;font-weight:650;letter-spacing:-.01em}
+  .section-prog{font-family:var(--mono);font-size:.72rem;color:var(--ink3);margin-left:auto;flex-shrink:0}
+  .card{position:relative;background:var(--surface);border:1px solid var(--line);border-left:3px solid var(--line2);border-radius:11px;margin-bottom:9px;overflow:hidden;transition:.18s}
+  .card.known{border-left-color:var(--known)}
+  .card.again{border-left-color:var(--again)}
+  .q{padding:14px 16px;cursor:pointer;font-size:.95rem;font-weight:550;display:flex;gap:11px;align-items:flex-start}
+  .q:hover{background:var(--surface2)}
+  .q .tag{font-family:var(--mono);font-size:.6rem;flex-shrink:0;margin-top:3px;width:16px;height:16px;border-radius:5px;border:1px solid var(--line2);display:flex;align-items:center;justify-content:center;color:var(--ink3)}
+  .card.known .q .tag{background:var(--known);border-color:var(--known);color:#fff}
+  .card.again .q .tag{background:var(--again);border-color:var(--again);color:#fff}
+  .q .qt{flex:1}
+  .q .cue{font-family:var(--mono);font-size:.66rem;letter-spacing:.1em;color:var(--recall);flex-shrink:0;margin-top:3px;opacity:.85;transition:.15s}
+  .card.open .q .cue{opacity:0}
+  .ans{max-height:0;overflow:hidden;transition:max-height .28s ease}
+  .card.open .ans{max-height:900px}
+  .ans-inner{padding:0 16px 14px 43px;font-size:.9rem;color:var(--ink)}
+  .ans-inner .body{border-top:1px dashed var(--line2);padding-top:11px;color:var(--ink2);white-space:pre-wrap}
+  .ans-inner .body strong{color:var(--ink);font-weight:650}
+  code{font-family:var(--mono);font-size:.84em;background:var(--bg2);color:var(--recall);padding:2px 6px;border-radius:5px}
+  .grade{display:flex;gap:8px;margin-top:13px;white-space:normal}
+  .gbtn{font-family:var(--mono);font-size:.74rem;letter-spacing:.02em;padding:7px 14px;border-radius:8px;cursor:pointer;border:1px solid var(--line2);background:var(--surface2);color:var(--ink2);transition:.15s}
+  .gbtn.g-known:hover,.gbtn.g-known.sel{background:var(--known-soft);border-color:var(--known);color:var(--known)}
+  .gbtn.g-again:hover,.gbtn.g-again.sel{background:var(--again-soft);border-color:var(--again);color:var(--again)}
+  .empty{text-align:center;color:var(--ink3);font-family:var(--mono);font-size:.82rem;padding:40px 0}
+  .toc{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px}
+  .toc a{font-family:var(--mono);font-size:.7rem;color:var(--ink3);text-decoration:none;border:1px solid var(--line);padding:4px 9px;border-radius:7px;transition:.15s}
+  .toc a:hover{color:var(--recall);border-color:var(--recall)}
+  *:focus-visible{outline:2px solid var(--recall);outline-offset:2px}
+  @media (prefers-reduced-motion:reduce){*{transition:none!important}}
+  @media (max-width:560px){.head h1{font-size:1.3rem}.ans-inner{padding-left:16px}}
+</style>
+</head>
+<body>
+<div class="top">
+  <div class="top-row">
+    <span class="brand">PRG2 · Theorie</span>
+    <span class="score"><b id="s-known">0</b> / <span id="s-total">0</span> sitzt</span>
+  </div>
+  <div class="bar"><i id="barfill"></i></div>
+</div>
+
+<div class="wrap">
+  <div class="head">
+    <h1>Aktiv lernen statt nur lesen</h1>
+    <p>Erst selbst antworten → dann aufdecken → ehrlich bewerten.</p>
+  </div>
+
+  <div class="filters">
+    <button class="chip on" data-f="all">Alle <span class="n" id="c-all">0</span></button>
+    <button class="chip" data-f="open">Noch offen <span class="n" id="c-open">0</span></button>
+    <button class="chip" data-f="again">Nochmal <span class="n" id="c-again">0</span></button>
+    <span class="spacer"></span>
+    <button class="mini" id="reset">Fortschritt zurücksetzen</button>
+  </div>
+
+  <div class="toc" id="toc"></div>
+  <div id="content"></div>
+  <div class="empty" id="empty" style="display:none">Nichts hier — Filter oben wechseln.</div>
+</div>
+
+<script>
+const DATA = [
+  {
+    id:"s1", num:"Abschnitt 1", name:"Fragen 1\u2013113",
+    items:[
+      {q:"Was ist ein rekursiver Algorithmus?", a:"Ein Algorithmus, der sich bis zu einer gewissen Grenze (Rekursionsabbruch) selbst aufruft."},
+      {q:"Nennen Sie ein Beispiel f\u00fcr ein Problem, das durch einen rekursiven Algorithmus eleganter gel\u00f6st werden kann als durch einen iterativen Algorithmus.", a:"Fakult\u00e4t berechnen, T\u00fcrme von Hanoi."},
+      {q:"Welche Bestandteile geh\u00f6ren zu einem rekursiven Algorithmus?", a:"1. Basisfall (Rekursionsabbruch)\n2. Rekursiver Fall (Aufruf derselben Methode mit Problemverkleinerung)"},
+      {q:"Was ist die zentrale Idee f\u00fcr den rekursiven Algorithmus zur L\u00f6sung von T\u00fcrmen von Hanoi?", a:"n\u22121 Scheiben auf den Hilfsstab \u2192 gr\u00f6\u00dfte Scheibe auf Zielstab \u2192 n\u22121 Scheiben vom Hilfsstab auf Zielstab."},
+      {q:"Was ist die zentrale Idee f\u00fcr den rekursiven Algorithmus zur Spiegelung eines Strings?", a:"Spiegelung(S) = Spiegelung(Rest ohne 1. Zeichen) + 1. Zeichen\nAbbruchbedingung: Wenn der String leer ist oder nur noch aus einem Zeichen besteht, wird er unver\u00e4ndert zur\u00fcckgegeben."},
+      {q:"Was ist die zentrale Idee f\u00fcr den rekursiven Algorithmus, der \u00fcberpr\u00fcft, ob ein String ein Palindrom ist?", a:"Erstes und letztes Zeichen gleich und Mitte ist auch ein Palindrom.\nAbbruchbedingung: L\u00e4nge 0 oder 1 \u2192 true."},
+      {q:"Wie erzeugt man in Java ein 2D-Array mit int-Elementen, in dem alle Unterarrays die gleiche Gr\u00f6\u00dfe haben?", a:"int[][] a = new int[5][3];"},
+      {q:"Wie kann man in Java ein 2D-Array direkt bei der Erzeugung mit Werten f\u00fcllen?", a:"int[][] b = { {1, 2}, {3, 4} };"},
+      {q:"Schreiben Sie einen Java-Ausdruck auf, der ein 2D-Array mit den int-Elementen 1, 2, 3, 4 als Wert hat.", a:"int[][] c = { {1, 2}, {3, 4} };"},
+      {q:"Was ist ein Binomialkoeffizient?", a:"Gibt an, wie viele M\u00f6glichkeiten es gibt, k Elemente aus einer Menge von n Elementen auszuw\u00e4hlen."},
+      {q:"Wie kann man einen Binomialkoeffizienten durch eine rekursive Funktion berechnen?", a:"C(n, k) = C(n\u22121, k\u22121) + C(n\u22121, k)\nBasisfall: k==0 oder n==k \u2192 1"},
+      {q:"Wie kann man die Fakult\u00e4tsfunktion durch eine rekursive Funktion berechnen?", a:"n! = n * (n\u22121)!\nBasisfall: 0! = 1"},
+      {q:"Notieren Sie \"5 \u00fcber 2\" als mathematisches Symbol.", a:"(\u2075\u2082) \u2014 Binomialkoeffizient: 5 oben, 2 unten in Klammern (= 10)."},
+      {q:"Was versteht man unter dem Pascalschen Dreieck?", a:"Dreieckige Anordnung der Binomialkoeffizienten; jeder Wert ist die Summe der beiden dar\u00fcberstehenden."},
+      {q:"Was sind die drei Hauptzwecke einer Klasse in Java?", a:"Organisationseinheiten, Definition neuer Datentypen, Aufbau von Objekten (Blueprints)."},
+      {q:"Was sind die wichtigsten Unterschiede zwischen statischen Variablen und Instanzvariablen?", a:"Statische Variablen existieren nur 1\u00d7 pro Klasse, objektunabh\u00e4ngig.\nInstanzvariablen existieren 1\u00d7 pro Objekt, separat f\u00fcr jedes Objekt."},
+      {q:"Wo im Programmcode werden statische Variablen und Instanzvariablen deklariert?", a:"Beide werden auf Klassenebene deklariert (unter public class)."},
+      {q:"Wie wird auf statische Variablen und wie wird auf Instanzvariablen zugegriffen?", a:"Statisch: Klassenname.variable\nInstanz: objekt.variable"},
+      {q:"Welche Namenskonvention wurde f\u00fcr die Benennung von Instanzvariablen in der Vorlesung vereinbart?", a:"Pr\u00e4fix \u201em\u201c"},
+      {q:"Wof\u00fcr steht das m am Anfang des Namens einer Instanzvariablen?", a:"member"},
+      {q:"Nennen Sie zwei Synonyme f\u00fcr Instanzvariable.", a:"Attribut, Member"},
+      {q:"Wann verwenden Sie eine statische Variable und wann eine Instanzvariable?", a:"Statisch: Wenn der Wert f\u00fcr alle Objekte der Klasse identisch sein soll (z.\u202fB. Konstanten).\nInstanz: Wenn jedes Objekt einen eigenen Wert besitzen muss (z.\u202fB. Name, ID)."},
+      {q:"Mit welchem Wert werden statische Variablen und Instanzvariablen automatisch initialisiert?", a:"Primitiv: 0\nReferenztyp: null"},
+      {q:"Werden lokale Variablen automatisch initialisiert?", a:"Nein."},
+      {q:"Was sind die wichtigsten Unterschiede zwischen statischen Methoden und Instanzmethoden?", a:"Statisch: werden \u00fcber die Klasse aufgerufen, kein this.\nInstanz: werden \u00fcber konkretes Objekt aufgerufen, mit this."},
+      {q:"Wo im Programmcode werden statische Methoden und Instanzmethoden definiert?", a:"Auf Klassenebene unter public class, nicht innerhalb anderer Methoden."},
+      {q:"Auf welches Objekt wird mit this innerhalb einer Instanzmethode zugegriffen?", a:"Auf das konkrete Objekt, \u00fcber welches die Methode aktuell aufgerufen wurde."},
+      {q:"Auf welches Objekt wird mit this innerhalb einer statischen Methode zugegriffen?", a:"Funktioniert nicht \u2014 this ist in statischen Methoden nicht verf\u00fcgbar."},
+      {q:"Warum wurden Z\u00e4hler und Nenner des Datentyps Fraction als Instanzvariablen und nicht als statische Variablen implementiert?", a:"Um separate und unterschiedliche Br\u00fcche zu erzeugen."},
+      {q:"Warum wurden die Setter der Instanzvariablen der Klasse Fraction mit dem Zugriffsmodifizierer private versehen?", a:"\u201eImmutable\u201c \u2192 Bruch kann nicht nachtr\u00e4glich von au\u00dfen modifiziert werden."},
+      {q:"Wozu dient ein Konstruktor (in der Regel) grunds\u00e4tzlich?", a:"Zur Initialisierung der Instanzvariablen eines neuen Objekts."},
+      {q:"Nennen Sie drei wesentliche Unterschiede zwischen Konstruktoren und anderen Instanzmethoden.", a:"1. Ein Konstruktor hei\u00dft genauso wie seine Klasse.\n2. Besitzt keinen R\u00fcckgabetyp.\n3. Wird nicht an einem Objekt aufgerufen, stattdessen mit \u201enew\u201c."},
+      {q:"Was ist ein Copy-Konstruktor?", a:"Erstellt eine Kopie eines existierenden Objekts derselben Klasse mit gleichen Werten."},
+      {q:"Notieren Sie den Kopf des Copy-Konstruktors der Klasse MyClass.", a:"public MyClass(MyClass m)"},
+      {q:"Schreiben Sie einen Standard-Konstruktor der Klasse MyClass auf.", a:"public MyClass(){}"},
+      {q:"Was versteht man unter Kapselung?", a:"Verbergen von Attributen (private), Zugriff nur \u00fcber Getter/Setter."},
+      {q:"Wozu dient das Schl\u00fcsselwort final im Zusammenhang mit einer Variablendeklaration?", a:"Der Wert kann nach Initialisierung nicht mehr ge\u00e4ndert werden \u2192 Konstante."},
+      {q:"Was bewirkt der Zugriffsmodifizierer public bei einer Variablendeklaration?", a:"Zugriff von \u00fcberall."},
+      {q:"Was bewirkt der Zugriffsmodifizierer private bei einer Variablendeklaration?", a:"Zugriff nur aus der eigenen Klasse."},
+      {q:"Was bewirkt der Zugriffsmodifizierer protected bei einer Variablendeklaration?", a:"Zugriff aus gleichem Paket und aus Unterklassen."},
+      {q:"Welche beiden Formen von Polymorphismus gibt es in Java?", a:"Compile-Time-Polymorphismus, Run-Time-Polymorphismus."},
+      {q:"Wie wird Compile-Time-Polymorphismus in Java umgesetzt?", a:"Durch \u00dcberladen von Methoden."},
+      {q:"Wie wird Run-Time-Polymorphismus in Java umgesetzt?", a:"Durch \u00dcberschreiben von Methoden."},
+      {q:"Was versteht man unter \u00dcberladen?", a:"Mehrere Methoden gleichen Namens, die sich in der Parameterliste unterscheiden."},
+      {q:"Was ist beim \u00dcberladen von Funktionen zu beachten?", a:"Parameterliste muss sich unterscheiden (Anzahl oder Datentypen)."},
+      {q:"Was versteht man unter \u00dcberschreiben?", a:"Ver\u00e4nderung der Funktionalit\u00e4t einer geerbten Methode in der Unterklasse."},
+      {q:"Welche Annotation haben wir in der Vorlesung kennengelernt?", a:"@Override"},
+      {q:"Mit welcher Annotation wird eine Funktion, die eine geerbte Funktion \u00fcberschreibt, versehen?", a:"@Override"},
+      {q:"Wozu dient die Annotation @Override in Java?", a:"Um sicherzustellen, dass eine geerbte Funktion \u00fcberschrieben wird (Compilerfehler bei Tippfehler)."},
+      {q:"Was versteht man unter Vererbung?", a:"Eine Klasse dient als Unterklasse einer anderen und besitzt alle Attribute und Methoden der Oberklasse und kann erweitert werden."},
+      {q:"Geben Sie den Kopf einer Klasse MyClass an, die von der Klasse SuperClass erbt.", a:"class MyClass extends SuperClass"},
+      {q:"Nennen Sie zwei Synonyme f\u00fcr Oberklasse.", a:"Superklasse, Basisklasse."},
+      {q:"Was gilt f\u00fcr die Vererbung von Konstruktoren in Java?", a:"Konstruktoren werden nicht vererbt. Jede Unterklasse muss ihren eigenen Konstruktor definieren, kann aber den Konstruktor mittels super() aufrufen."},
+      {q:"Welche Regeln gelten f\u00fcr den expliziten Aufruf eines Konstruktors der gleichen Klasse?", a:"this(...) muss die erste Anweisung im Konstruktor sein."},
+      {q:"Wann erstellt Java einen Konstruktor? Und welche Eigenschaften hat dieser?", a:"Wenn keiner definiert ist: ein parameterloser Standardkonstruktor mit leerem K\u00f6rper."},
+      {q:"Wozu dient super?", a:"Zugriff auf Methoden/Variablen der Oberklasse und Aufruf von deren Konstruktoren."},
+      {q:"Welche Regeln gelten f\u00fcr den expliziten Aufruf eines Konstruktors der Oberklasse?", a:"Aufruf \u00fcber Schl\u00fcsselwort super, muss zwingend die erste Anweisung im Konstruktor der Unterklasse sein."},
+      {q:"Warum besitzt jede Klasse die Methoden toString und equals?", a:"Jede Klasse erbt von Object, die diese Methoden besitzt."},
+      {q:"Wie hei\u00dft die Klasse, die an der Wurzel der Vererbungshierarchie steht?", a:"Object"},
+      {q:"Welche Aufgabe hat die Instanzmethode toString einer Klasse?", a:"Gibt eine String-Darstellung des Objekts zur\u00fcck."},
+      {q:"Welche Aufgabe hat die Instanzmethode equals einer Klasse?", a:"Pr\u00fcft, ob zwei Objekte wertgleich sind."},
+      {q:"Wie sieht der erste Parameter der Methode printf aus?", a:"String mit \"%d\" oder \"%s\" als Platzhalter."},
+      {q:"Wie viele Parameter hat die Methode printf?", a:"Mindestens 1 (Formatstring) + beliebig viele weitere."},
+      {q:"Was ist null und wozu dient null?", a:"Standardwert f\u00fcr Referenzvariablen, der bedeutet: zeigt auf kein Objekt."},
+      {q:"Welche beiden Bestandteile geh\u00f6ren zu einem Datentyp in der Informatik und wie werden diese in Java realisiert?", a:"1. Menge von Werten \u2192 Instanzvariablen\n2. Operationen \u2192 Methoden"},
+      {q:"Was ist ein immutable Datentyp?", a:"Ein Datentyp, dessen Objekte nach Erzeugung nicht mehr ver\u00e4ndert werden k\u00f6nnen (z.\u202fB. String, BigInteger)."},
+      {q:"Wozu dient der Datentyp BigInteger in Java grunds\u00e4tzlich?", a:"F\u00fcr ganzzahlige Berechnungen beliebiger Gr\u00f6\u00dfe ohne \u00dcberlauf."},
+      {q:"Schreiben Sie einen Ausdruck auf, der zwei BigInteger-Objekte addiert.", a:"BigInteger b3 = b1.add(b2);"},
+      {q:"Wie hei\u00dft die Methode des Datentyps BigInteger zur Subtraktion?", a:".subtract()"},
+      {q:"Wie hei\u00dft die Methode des Datentyps BigInteger zum Vorzeichenwechsel?", a:".negate()"},
+      {q:"Wie hei\u00dft die Methode des Datentyps BigInteger zur Berechnung des Restes der ganzzahligen Division?", a:".mod()"},
+      {q:"Wie hei\u00dft die Methode des Datentyps BigInteger zur Durchf\u00fchrung von Vergleichen?", a:".compareTo()"},
+      {q:"Welche Werte kann signum des Datentyps BigInteger liefern und was bedeuten sie?", a:"Negativ: \u22121, Null: 0, Positiv: 1"},
+      {q:"Welche Werte kann compareTo des Datentyps BigInteger liefern und was bedeuten sie?", a:"Negativ (kleiner), 0 (gleich), positiv (gr\u00f6\u00dfer)."},
+      {q:"Wozu dient die Methode valueOf der Klasse BigInteger?", a:"Umwandlung einer primitiven Zahl in ein BigInteger-Objekt."},
+      {q:"Ist valueOf eine statische oder eine Instanzmethode der Klasse BigInteger?", a:"Statische Methode."},
+      {q:"Wie kann man aus einem String ein gleichwertiges BigInteger-Objekt erzeugen?", a:"new BigInteger(\"123\");"},
+      {q:"Was ist ein Aufz\u00e4hlungstyp in Java?", a:"Ein Datentyp mit endlich vielen vordefinierten Werten."},
+      {q:"Schreiben Sie ein Beispiel f\u00fcr einen Aufz\u00e4hlungstyp mit zwei Werten auf.", a:"public enum Color { RED, BLUE };"},
+      {q:"Was gilt f\u00fcr die Sichtbarkeit des Konstruktors eines Aufz\u00e4hlungstyps?", a:"Implizit private."},
+      {q:"In der Vorlesung wurden zwei statische Funktionen vorgestellt, die jeder Aufz\u00e4hlungstyp besitzt. Wie hei\u00dfen diese?", a:".values() \u2192 Array mit allen Werten zur\u00fcck\n.valueOf(String) \u2192 gibt enum-Wert zur\u00fcck mit dem Namen im String"},
+      {q:"Welche Funktion hat ein Array aller Werte eines Aufz\u00e4hlungstyps als R\u00fcckgabewert?", a:".values()"},
+      {q:"Was leistet die Funktion valueOf eines Aufz\u00e4hlungstyps?", a:"Gibt den passenden enum-Wert zur\u00fcck mit dem Namen im String."},
+      {q:"Wie addiert, multipliziert und dividiert man zwei Br\u00fcche?", a:"Addition: a/b + c/d = (a\u00b7d + b\u00b7c) / (b\u00b7d)\nMultiplikation: a/b \u00b7 c/d = (a\u00b7c) / (b\u00b7d)\nDivision: a/b \u00f7 c/d = (a\u00b7d) / (b\u00b7c)"},
+      {q:"Was versteht man unter einer Exception in der Programmierung?", a:"Ein Fehler, der zur Laufzeit auftritt und auf den reagiert werden sollte."},
+      {q:"Was sind Exceptions in Java technisch?", a:"Objekte, die von der Klasse Exception erben."},
+      {q:"Was ist der Fachbegriff f\u00fcr das Ausl\u00f6sen einer Exception?", a:"\u201eWerfen\u201c \u2192 throw"},
+      {q:"Schreiben Sie eine Java-Anweisung auf, die eine Exception vom Typ Exception wirft.", a:"throw new Exception(\"Nachricht\");"},
+      {q:"Wie reagiert Java standardm\u00e4\u00dfig auf das Werfen einer Exception?", a:"Programmabbruch mit Ausgabe einer Stacktrace."},
+      {q:"Schreiben Sie eine Java-Anweisung zum Abfangen einer Exception auf.", a:"try { ... } catch (Exception e) { ... }"},
+      {q:"Wozu dient der finally-Block?", a:"Enth\u00e4lt Code, der in jedem Fall ausgef\u00fchrt wird (mit oder ohne Exception)."},
+      {q:"Was versteht man unter der Eskalation einer Exception?", a:"Eine nicht abgefangene Exception wandert im Aufruf-Stack nach oben, bis sie abgefangen wird."},
+      {q:"Was sind checked Exceptions?", a:"Exceptions, die nicht von RuntimeException erben \u2013 m\u00fcssen zwingend abgefangen oder deklariert werden."},
+      {q:"Was sind unchecked Exceptions?", a:"Erben von RuntimeException, m\u00fcssen nicht zwingend behandelt werden."},
+      {q:"Nennen Sie Beispiele f\u00fcr Klassen, deren Objekte checked Exceptions sind.", a:"SQLException, IOException"},
+      {q:"Nennen Sie Beispiele f\u00fcr Klassen, deren Objekte unchecked Exceptions sind.", a:"IllegalArgumentException, RuntimeException"},
+      {q:"Wie muss ein Programmierer mit checked Exceptions umgehen?", a:"Entweder abfangen (try-catch) oder mit throws deklarieren."},
+      {q:"Schreiben Sie den Kopf einer Methode auf, in der eine Exception deklariert wird.", a:"public void test() throws Exception"},
+      {q:"Wie kann ein Programmierer eine eigene Exception-Klasse definieren?", a:"Neue Klasse, die von Exception oder einer Unterklasse davon erbt."},
+      {q:"Wozu dient die Methode getMessage der Klasse Exception?", a:"Liefert den Fehlertext der Exception zur\u00fcck."},
+      {q:"Wozu dient die Methode printStackTrace der Klasse Exception?", a:"Gibt den Aufruf-Stack (Fehlerverlauf) auf der Konsole aus."},
+      {q:"Was sind Unterschiede und Gemeinsamkeiten von Interfaces und abstrakten Klassen?", a:"Gemeinsam: beide nicht instanziierbar, k\u00f6nnen abstrakte Methoden enthalten.\nInterface: keine Instanzvariablen & kein Konstruktor.\nAbstrakte Klasse: beides m\u00f6glich."},
+      {q:"Was versteht man unter Mehrfachvererbung?", a:"Eine Klasse erbt von mehreren Oberklassen."},
+      {q:"Ist Mehrfachvererbung in Java m\u00f6glich?", a:"Nein."},
+      {q:"Kann eine Java-Klasse mehrere Interfaces implementieren?", a:"Ja."},
+      {q:"Ist die folgende Formulierung sprachlich korrekt: \u201eEine Klasse erbt von einem Interface\u201c?", a:"Nein, sie implementiert ein Interface."},
+      {q:"Ist die folgende Formulierung sprachlich korrekt: \u201eEine Klasse implementiert ein Interface\u201c?", a:"Ja."},
+      {q:"Welche Einschr\u00e4nkung besteht, wenn eine Klasse mehrere Interfaces implementiert?", a:"Die Interfaces d\u00fcrfen nicht die gleiche Methode mit unterschiedlichem R\u00fcckgabetyp deklarieren."},
+      {q:"Was bewirkt die Verwendung des Schl\u00fcsselworts final bei der Definition einer Klasse?", a:"Von dieser Klasse kann nicht geerbt werden."},
+      {q:"Kann ein Interface instanziiert werden?", a:"Nein."},
+      {q:"Kann eine abstrakte Klasse instanziiert werden?", a:"Nein."},
+      {q:"Kann ein Interface einen Konstruktor enthalten?", a:"Nein."},
+      {q:"Kann eine abstrakte Klasse einen Konstruktor enthalten?", a:"Ja."}
+    ]
+  },
+  {
+    id:"s2", num:"Abschnitt 2", name:"Fragen 71\u2013101 (Zusatzdokument)",
+    items:[
+      {q:"71. Benennen Sie die Verwendungszwecke einer Klasse.", a:"Erstellung von Objekten, Speichern von Methoden, Erstellung von Datentypen, Definition des Aufbaus von Datentypen, Klassen als Organisationseinheit."},
+      {q:"72. Welcher Wert kann jeder Referenzvariablen, nicht aber einer Variablen eines primitiven Datentyps zugewiesen werden?", a:"null"},
+      {q:"73. Sei m eine statische Methode in einer Klasse C mit einem int-Parameter und einem Parameter von Typ BigInteger. Geben Sie einen Beispielaufruf von m in einer Methode m2 in Klasse D an. C und D sind im gleichen Paket.", a:"C.m(1, new BigInteger(\"567\"));"},
+      {q:"74. Nennen Sie zwei Synonyme f\u00fcr Instanzvariable.", a:"Attribut, Member"},
+      {q:"75. Geben Sie ein Beispiel f\u00fcr die Definition einer Konstanten vom Typ List an.", a:"public static final List<Integer> MEINE_LISTE = new ArrayList<>();"},
+      {q:"76. Wozu dienen Zugriffsmodifizierer grunds\u00e4tzlich, wenn sie bei einer Variablendefinition verwendet werden? (Keine Beispiele.)", a:"Kontrolle/Einschr\u00e4nkung des direkten Zugriffs auf die Variable aus anderen Klassen."},
+      {q:"77. Wozu dient der Zugriffsmodifizierer protected, wenn dieser bei einer Variablendefinition verwendet wird?", a:"Zugriff nur aus Unterklassen und anderen Klassen im selben Paket."},
+      {q:"78. Was versteht man unter Kapselung?", a:"Direkter Zugriff aus klassenfremden Methoden wird eingeschr\u00e4nkt, Zugriff nur \u00fcber bestimmte Methoden (z.\u202fB. Getter und Setter)."},
+      {q:"79. Wozu dienen Setter in Java?", a:"Ver\u00e4nderung von privaten Variablen aus klassenfremden Methoden, Eingabepr\u00fcfung/Validierung (\u201eist die Eingabe sinnvoll/zul\u00e4ssig\u201c)."},
+      {q:"80. Warum hat in Java jede Klasse einen Konstruktor?", a:"Damit Objekte der Klasse erstellt werden k\u00f6nnen. Es gibt immer einen leeren Standardkonstruktor."},
+      {q:"81. Was ist der Unterschied zwischen \u00dcberladen und \u00dcberschreiben?", a:"\u00dcberladen: in der gleichen Klasse mehrere Methoden mit dem gleichen Namen, aber anderer Parameterliste.\n\u00dcberschreiben: @Override \u2192 bei Vererbung wird die Methode der Oberklasse in der Unterklasse \u00fcberschrieben."},
+      {q:"82. Welche Regeln gelten im Zusammenhang mit dem expliziten Aufruf eines Konstruktors innerhalb derselben Klasse?", a:"Aufruf mit this(\u2026) muss die erste Anweisung im Konstruktor sein."},
+      {q:"83. Was ist ein Copy-Konstruktor?", a:"Erstellt eine Kopie eines existierenden Objekts derselben Klasse mit gleichen Werten."},
+      {q:"84. Welche Variablenarten werden automatisch initialisiert und welche nicht?", a:"Automatisch initialisiert: Klassenvariablen, Instanzvariablen.\nNicht automatisch initialisiert: lokale Variablen, formale Parameter."},
+      {q:"85. Nennen Sie zwei Synonyme f\u00fcr Oberklasse.", a:"Superklasse, Basisklasse."},
+      {q:"86. Welche Regeln gelten im Zusammenhang mit dem expliziten Aufruf eines Konstruktors der Oberklasse?", a:"Aufruf mit super(\u2026) muss am Anfang des Konstruktors stehen."},
+      {q:"87. Die Klasse B erbe von der Klasse A. In welcher Beziehung stehen Objekte der Klasse B zu Objekten der Klasse A?", a:"Objekte B sind spezielle Objekte der Klasse A; nicht alle Objekte A sind Objekte B."},
+      {q:"88. Wie hei\u00dft die Klasse, die an der Wurzel der Klassenhierarchie steht?", a:"Object"},
+      {q:"89. Welche Annotation wird im Zusammenhang mit dem \u00dcberschreiben einer geerbten Methode verwendet?", a:"@Override"},
+      {q:"90. Wozu dient die Methode toString?", a:"Instanzmethode, die eine String-Repr\u00e4sentation des Objektes zur\u00fcckgibt."},
+      {q:"91. Ist equals eine Instanzmethode oder eine Klassenmethode?", a:"Instanzmethode."},
+      {q:"92. Gegeben sei der Aufz\u00e4hlungstyp MyEnum. Schreiben Sie eine Schleife, die alle Werte ausgibt.", a:"for (MyEnum e : MyEnum.values()) {\n    System.out.println(e);\n}"},
+      {q:"93. Gegeben sei der Aufz\u00e4hlungstyp MyEnum mit den Werten A, B und C. Wie kann der String \"A\" in den Wert A umgewandelt werden?", a:"MyEnum.valueOf(\"A\");"},
+      {q:"94. Wie wird in Java Compile-Time-Polymorphismus umgesetzt?", a:"\u00dcberladung von Methoden. Java entscheidet beim Compile-Prozess anhand der Parameterliste, welche Methode gemeint ist."},
+      {q:"95. Wie wird in Java Runtime-Polymorphismus umgesetzt?", a:"\u00dcberschreibung, Vererbung, Dynamisches Binden: Java f\u00fchrt die Methode aus, die in der Klassenhierarchie am weitesten unten definiert ist."},
+      {q:"96. Was ist eine Exception in Java?", a:"Objekte, die Fehlerzust\u00e4nde repr\u00e4sentieren. Exceptions k\u00f6nnen geworfen werden \u2192 Programm wird abgebrochen, falls sie nicht aufgefangen werden."},
+      {q:"97. Welche Ursachen f\u00fchren zum Werfen einer Exception?", a:"Fehler im Programmcode oder illegaler Input vom User.\nBei nicht erlaubten Operationen (Division durch 0, nicht existenter Array-Platz), oder explizit mit throw."},
+      {q:"98. Wie stellt Java fest, ob eine Exception eine Checked Exception ist?", a:"Wenn sie von RuntimeException erbt (oder RuntimeException ist), ist sie unchecked \u2013 sonst checked."},
+      {q:"99. Nennen Sie drei Beispiele f\u00fcr Klassen, deren Objekte Checked Exceptions sind.", a:"IOException, FileNotFoundException, SQLException"},
+      {q:"100. Nennen Sie drei Beispiele f\u00fcr Klassen, deren Objekte Unchecked Exceptions sind.", a:"IllegalArgumentException, RuntimeException, ArithmeticException"},
+      {q:"101. Was muss der Programmierer beim Schreiben von Code, dessen Ausf\u00fchrung zum Werfen einer Checked Exception f\u00fchren kann, beachten?", a:"M\u00fcssen abgefangen (try-catch) oder weitergegeben werden (Deklaration mit throws \u2014 m\u00fcssen dann in einer h\u00f6heren Methode abgefangen werden)."}
+    ]
+  }
+];
+
+const KEY="prg2_progress_v1";
+let state={};
+try{ state=JSON.parse(localStorage.getItem(KEY))||{}; }catch(e){ state={}; }
+function save(){ try{ localStorage.setItem(KEY,JSON.stringify(state)); }catch(e){} }
+
+let filter="all";
+let allIds=[];
+DATA.forEach((sec,si)=>sec.items.forEach((it,ii)=>{ it._id=si+"_"+ii; allIds.push(it._id); }));
+
+const content=document.getElementById('content');
+const toc=document.getElementById('toc');
+
+function passes(id){
+  if(filter==="all") return true;
+  if(filter==="open") return state[id]!=="known";
+  if(filter==="again") return state[id]==="again";
+}
+
+function build(){
+  toc.innerHTML=""; content.innerHTML="";
+  DATA.forEach((sec,si)=>{
+    const a=document.createElement('a');
+    a.href="#sec"+si; a.textContent=sec.name; toc.appendChild(a);
+    const visible=sec.items.filter(it=>passes(it._id));
+    if(visible.length===0) return;
+    const block=document.createElement('div');
+    block.className="section-block"; block.id="sec"+si;
+    const known=sec.items.filter(it=>state[it._id]==="known").length;
+    block.innerHTML=`<div class="section-head">
+        <span class="section-num">${sec.num}</span>
+        <span class="section-name">${sec.name}</span>
+        <span class="section-prog">${known}/${sec.items.length}</span>
+      </div>`;
+    visible.forEach(it=>block.appendChild(cardEl(it)));
+    content.appendChild(block);
+  });
+  document.getElementById('empty').style.display=content.children.length?"none":"block";
+  refreshStats();
+}
+
+function cardEl(it){
+  const st=state[it._id]||"";
+  const card=document.createElement('div');
+  card.className="card"+(st?" "+st:"");
+  const mark=st==="known"?"✓":st==="again"?"↻":"";
+  card.innerHTML=`
+    <div class="q">
+      <span class="tag">${mark}</span>
+      <span class="qt">${it.q}</span>
+      <span class="cue">ANTWORT</span>
+    </div>
+    <div class="ans"><div class="ans-inner"><div class="body">${it.a.replace(/</g,'&lt;').replace(/>/g,'&gt;')}
+      <div class="grade">
+        <button class="gbtn g-known${st==="known"?" sel":""}">Sitzt ✓</button>
+        <button class="gbtn g-again${st==="again"?" sel":""}">Nochmal ↻</button>
+      </div>
+    </div></div></div>`;
+  card.querySelector('.q').addEventListener('click',()=>card.classList.toggle('open'));
+  card.querySelector('.g-known').addEventListener('click',e=>{e.stopPropagation();grade(it._id,"known");});
+  card.querySelector('.g-again').addEventListener('click',e=>{e.stopPropagation();grade(it._id,"again");});
+  return card;
+}
+
+function grade(id,val){ state[id]=state[id]===val?"":val; save(); build(); }
+
+function refreshStats(){
+  const total=allIds.length;
+  const known=allIds.filter(i=>state[i]==="known").length;
+  const open=allIds.filter(i=>state[i]!=="known").length;
+  const again=allIds.filter(i=>state[i]==="again").length;
+  document.getElementById('s-known').textContent=known;
+  document.getElementById('s-total').textContent=total;
+  document.getElementById('c-all').textContent=total;
+  document.getElementById('c-open').textContent=open;
+  document.getElementById('c-again').textContent=again;
+  document.getElementById('barfill').style.width=(total?Math.round(known/total*100):0)+"%";
+}
+
+document.querySelectorAll('.chip').forEach(ch=>{
+  ch.addEventListener('click',()=>{
+    document.querySelectorAll('.chip').forEach(x=>x.classList.remove('on'));
+    ch.classList.add('on'); filter=ch.dataset.f; build();
+  });
+});
+document.getElementById('reset').addEventListener('click',()=>{
+  if(confirm("Gesamten Lernfortschritt zurücksetzen?")){ state={}; save(); build(); }
+});
+
+build();
+</script>
+</body>
+</html>
